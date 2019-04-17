@@ -71,31 +71,37 @@ namespace GmailQuickstart
             });
 
             // Define parameters of request.
-            UsersResource.LabelsResource.ListRequest request = service.Users.Labels.List("me");
             var msgs = service.Users.Messages.List("me");
             msgs.IncludeSpamTrash = true;
             msgs.Q = "is:unread in:spam";
             msgs.MaxResults = 200;
-
             var result = msgs.Execute();
-            foreach(var msg in result.Messages)
+            do
             {
-                var messageReq = service.Users.Messages.Get("me", msg.Id);
-                messageReq.Format = UsersResource.MessagesResource.GetRequest.FormatEnum.Raw;
-                var messageResp = messageReq.Execute();
-                var raw = Encoding.ASCII.GetString(Base64UrlDecode(messageResp.Raw));
-                if(raw.Contains("amazonaws.com"))
+
+                foreach (var msg in result.Messages)
                 {
-                    //Console.WriteLine(raw);
-                    Message sMsg = new Message()
+                    var messageReq = service.Users.Messages.Get("me", msg.Id);
+                    messageReq.Format = UsersResource.MessagesResource.GetRequest.FormatEnum.Raw;
+                    var messageResp = messageReq.Execute();
+                    var raw = Encoding.ASCII.GetString(Base64UrlDecode(messageResp.Raw));
+                    if (raw.Contains("amazonaws.com"))
                     {
-                        Raw = Base64UrlEncode("To:abuse@amazonaws.com\r\nFrom:ptdave20@gmail.com\r\n"+
-                        "Content-Type: text/plain; charset=us-ascii\r\n\r\n"+ raw)
-                    };
-                    service.Users.Messages.Send(sMsg, "me").Execute();
+                        //Console.WriteLine(raw);
+                        Message sMsg = new Message()
+                        {
+                            Raw = Base64UrlEncode("To:abuse@amazonaws.com\r\nFrom:ptdave20@gmail.com\r\n" +
+                            "Content-Type: text/plain; charset=us-ascii\r\n\r\n" + raw)
+                        };
+                        service.Users.Messages.Send(sMsg, "me").Execute();
+                    }
+                    service.Users.Messages.Trash("me", messageResp.Id).Execute();
                 }
-                service.Users.Messages.Trash("me", messageResp.Id).Execute();
-            }
+                if (string.IsNullOrEmpty(result.NextPageToken))
+                    break;
+                msgs.PageToken = result.NextPageToken;
+                result = msgs.Execute();
+            } while (true);
 
             //// List labels.
             //IList<Label> labels = request.Execute().Labels;
